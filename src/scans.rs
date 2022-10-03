@@ -79,7 +79,7 @@ pub async fn process_scans(opt: &Opt, db: &mut Database) -> Result<()> {
     info!("Found {} files", files.len());
 
     let is_reachable =
-        crate::check_links::link_is_reachable(&root_url, Duration::from_secs(30), true).await;
+        crate::check_links::link_is_reachable(&root_url, Duration::from_secs(30), 3, true).await;
     let links = files
         .drain(..)
         .map(|f| shared::db::Link {
@@ -88,6 +88,11 @@ pub async fn process_scans(opt: &Opt, db: &mut Database) -> Result<()> {
             opendirectory: root_url.clone(),
         })
         .collect();
+
+    //TODO check the headers returned from the reachable check for a `X-Robots-Tag` header with a value including `noindex` AND
+    //TODO add a manual banlist for ODs that have specifically requested not to be indexed and check the OD against that list
+    // any links not passing these two checks should either not end up in the database or *at least* be permanently excluded from elasticsearch
+    
     let save_result = db.save_scan_result(&root_url, links, is_reachable).await?;
     match save_result {
         SaveResult::Success => {

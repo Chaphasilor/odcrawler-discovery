@@ -87,6 +87,7 @@ async fn main() -> Result<()> {
     dbg!(&opt);
 
     let db = db::Database::new().await.unwrap();
+    info!("Connected to database");
 
     if !opt.disable_scheduler {
         let scheduler_db = db.clone();
@@ -205,6 +206,7 @@ impl Schedule for ProcessResults {
     }
 
     async fn run(&self, opt: &Opt, db: &mut Database) -> Result<()> {
+        info!("Running task {}", self.name());
         scans::process_scans(opt, db).await
     }
 }
@@ -221,6 +223,7 @@ impl Schedule for ScanOpendirectory {
     }
 
     async fn run(&self, _: &Opt, _: &mut Database) -> Result<()> {
+        info!("Running task {}", self.name());
         scans::scan_opendirectories()
     }
 }
@@ -237,6 +240,7 @@ impl Schedule for CheckLinks {
     }
 
     async fn run(&self, opt: &Opt, db: &mut Database) -> Result<()> {
+        info!("Running task {}", self.name());
         check_links::check_opendirectories(opt, db).await
     }
 }
@@ -253,6 +257,7 @@ impl Schedule for UpdateStats {
     }
 
     async fn run(&self, opt: &Opt, db: &mut Database) -> Result<()> {
+        info!("Running task {}", self.name());
         stats::update_stats(opt, db).await
     }
 }
@@ -269,6 +274,7 @@ impl Schedule for CreateDump {
     }
 
     async fn run(&self, opt: &Opt, db: &mut Database) -> Result<()> {
+        info!("Running task {}", self.name());
         stats::create_dump(opt, db).await
     }
 }
@@ -291,7 +297,7 @@ async fn scheduler_loop(opt: Opt, mut db: Database) {
         for task in &schedule_tasks {
             if counter % task.frequency() == 0 {
                 if let Err(e) = task.run(&opt, &mut db).await {
-                    error!("Failed to run task '{}' due to error: \n{}", task.name(), e);
+                    error!("Failed to run task '{}' due to error: \n{}\n{:?}", task.name(), e, e.source());
                     break;
                 };
             }

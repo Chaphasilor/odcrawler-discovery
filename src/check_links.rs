@@ -25,7 +25,7 @@ pub async fn check_opendirectories(opt: &Opt, db: &mut Database) -> Result<()> {
         .await?
         .filter_map(|res| async { res.ok() })
         .for_each_concurrent(128, |od| async {
-            let reachable = link_is_reachable(&od.url, Duration::from_secs(20), false).await;
+            let reachable = link_is_reachable(&od.url, Duration::from_secs(20), 3, false).await;
             match ods.lock() {
                 Ok(mut ods) => {
                     ods.push((od, reachable));
@@ -99,14 +99,15 @@ async fn remove_od_links(opt: &Opt, db: &Database, od: &OpenDirectory) -> Result
     Ok(())
 }
 
-pub async fn link_is_reachable(link: &str, timeout: Duration, log_status: bool) -> bool {
+pub async fn link_is_reachable(link: &str, timeout: Duration, max_redirects: u32, log_status: bool) -> bool {
     // Patch for some non-comformant URLs
-    let link = link.replace(" ", "%20");
+    let link = link.replace(' ', "%20");
 
     let mut builder = Request::head(&link)
         .connect_timeout(timeout)
         .timeout(timeout)
-        .ssl_options(SslOption::DANGER_ACCEPT_INVALID_CERTS);
+        .ssl_options(SslOption::DANGER_ACCEPT_INVALID_CERTS)
+        .redirect_policy(isahc::config::RedirectPolicy::Limit(max_redirects));
 
     // Workaround for hashhacker's "AI protection"
     if link.contains("driveindex.ga") {

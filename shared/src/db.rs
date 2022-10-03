@@ -1,3 +1,5 @@
+use std::error::Error;
+
 use anyhow::Result;
 use chrono::TimeZone;
 use serde::{Deserialize, Serialize};
@@ -106,6 +108,7 @@ impl Database {
         let mut options = ClientOptions::default();
         options.app_name = Some("odcrawler-discovery".to_string());
         let db = Client::with_options(options)?.database("odcrawler-discovery");
+        debug!("Created DB client");
 
         OpenDirectory::sync(&db).await?;
         Link::sync(&db).await?;
@@ -174,7 +177,8 @@ impl Database {
 
         let links: Vec<Document> = files
             .drain(..)
-            .map(|l| l.document_from_instance().unwrap())
+            .map(|l| l.document_from_instance()
+            .unwrap())
             .collect();
         for link in &links {
             if let Some(existing) = Link::find_one(&self.db, link.clone(), None).await? {
@@ -186,8 +190,14 @@ impl Database {
             }
         }
 
-        od.save(&self.db, None).await?;
-        Link::collection(&self.db).insert_many(links, None).await?;
+        if let Err(e) = od.save(&self.db, None).await {
+            error!("Error while saving the OD to the database:\n{}\n{:?}", e, e.source());
+            return Err(anyhow::Error::new(e));
+        };
+        if let Err(e) = Link::collection(&self.db).insert_many(links, None).await {
+            error!("Error while inserting links into the database:\n{}\n{:?}", e, e.source());
+            return Err(anyhow::Error::new(e));
+        };
 
         Ok(SaveResult::Success)
     }

@@ -1,7 +1,7 @@
 [package]
 name = "odcrawler_discovery"
 version = "0.1.0"
-authors = ["MCOfficer <mcofficer@gmx.de>"]
+authors = ["MCOfficer <mcofficer@gmx.de>", "Chaphasilor <me@chaphasilor.xyz>"]
 edition = "2018"
 
 [dependencies]
